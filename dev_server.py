@@ -398,8 +398,10 @@ def canonical_bus_stop_name(value: str) -> str:
     label = re.sub(r"\s+", " ", str(value or "").strip())
     label = re.sub(r"\s+(?:(?:OLD|NEW)\s+)?BUS\s*(?:STAND|ST[ .]?AND|TAND)$", "", label, flags=re.IGNORECASE)
     label = re.sub(r"\s+", " ", label).strip(" ,.-")
-    if label.casefold() == "changanacherry":
-        return "CHANGANASSERY"
+    compact = re.sub(r"[^a-z0-9]+", "", label.casefold())
+    aliases = {"changanacherry": "CHANGANASSERY", "kothamangalam": "KOTTAMANGALAM"}
+    if compact in aliases:
+        return aliases[compact]
     return label
 
 
@@ -481,6 +483,27 @@ def load_bus_timetable():
 
         if not runs:
             raise RuntimeError("The Kerala bus source returned no usable bus trips.")
+        segment_ranges = {}
+        for run in runs:
+            for first_stop, next_stop in zip(run["stops"], run["stops"][1:]):
+                key = (first_stop["key"], next_stop["key"])
+                duration = next_stop["arrival"] - first_stop["departure"]
+                stats = segment_ranges.setdefault(key, [0, duration, duration])
+                stats[0] += 1
+                stats[1] = min(stats[1], duration)
+                stats[2] = max(stats[2], duration)
+        suspect_segments = {
+            key for key, (count, shortest, longest) in segment_ranges.items()
+            if count >= 2 and shortest <= 2 and longest >= 10
+        }
+        for run in runs:
+            invalid_prefix = [0]
+            for first_stop, next_stop in zip(run["stops"], run["stops"][1:]):
+                key = (first_stop["key"], next_stop["key"])
+                duration = next_stop["arrival"] - first_stop["departure"]
+                invalid = key in suspect_segments and duration <= 2
+                invalid_prefix.append(invalid_prefix[-1] + int(invalid))
+            run["invalidPrefix"] = invalid_prefix
         index = {}
         for run_index, run in enumerate(runs):
             for stop_index, stop in enumerate(run["stops"][:-1]):
@@ -535,62 +558,72 @@ def bus_connection_plans(from_station: str, to_station: str, leave_after: str, m
         except (TypeError, ValueError) as exc:
             raise ValueError("Enter a non-negative transfer limit or choose no limit.") from exc
 
-    start_state = origin if unlimited else (origin, -1)
-    best = {start_state: start_minute}
-    parent, transfer_labels = {}, {start_state: -1}
-    queue = [(start_minute, start_state)]
-    target_states = []
-    horizon = start_minute + 24 * 60
+    def find_best_plan(search_after: int):
+        start_state = origin if unlimited else (origin, -1)
+        best = {start_state: search_after}
+        parent, transfer_labels = {}, {start_state: -1}
+        queue = [(search_after, start_state)]
+        target_states = []
+        horizon = search_after + 24 * 60
 
-    while queue:
-        arrival_at_station, state = heapq.heappop(queue)
-        if arrival_at_station != best.get(state):
-            continue
-        station = state if unlimited else state[0]
-        transfers_so_far = transfer_labels[state]
-        if station == destination:
-            target_states.append(state)
-            if unlimited:
-                break
-            continue
-        for run_index, stop_index in index.get(station, []):
-            run = runs[run_index]
-            first_stop = run["stops"][stop_index]
-            ready_at = arrival_at_station + (5 if transfers_so_far >= 0 else 0)
-            scheduled_departure = first_stop["departure"]
-            if scheduled_departure < ready_at:
-                scheduled_departure += ((ready_at - scheduled_departure + 1439) // 1440) * 1440
-            shift = scheduled_departure - first_stop["departure"]
-            if scheduled_departure > horizon:
+        while queue:
+            arrival_at_station, state = heapq.heappop(queue)
+            if arrival_at_station != best.get(state):
                 continue
-            next_transfers = 0 if transfers_so_far < 0 else transfers_so_far + 1
-            if not unlimited and next_transfers > max_transfers:
+            station = state if unlimited else state[0]
+            transfers_so_far = transfer_labels[state]
+            visited_stations = {station}
+            cursor = state
+            while cursor != start_state:
+                previous, previous_leg = parent[cursor]
+                visited_stations.add(normalize_bus_stop(previous_leg["from"]))
+                cursor = previous
+            if station == destination:
+                target_states.append(state)
+                if unlimited:
+                    break
                 continue
-            for next_stop in run["stops"][stop_index + 1:]:
-                next_arrival = next_stop["arrival"] + shift
-                while next_arrival < scheduled_departure:
-                    next_arrival += 1440
-                if next_arrival > horizon or next_stop["key"] == station:
+            for run_index, stop_index in index.get(station, []):
+                run = runs[run_index]
+                first_stop = run["stops"][stop_index]
+                ready_at = arrival_at_station + (5 if transfers_so_far >= 0 else 0)
+                scheduled_departure = first_stop["departure"]
+                if scheduled_departure < ready_at:
+                    scheduled_departure += ((ready_at - scheduled_departure + 1439) // 1440) * 1440
+                shift = scheduled_departure - first_stop["departure"]
+                if scheduled_departure > horizon:
                     continue
-                next_state = next_stop["key"] if unlimited else (next_stop["key"], next_transfers)
-                if next_arrival >= best.get(next_state, float("inf")):
+                next_transfers = 0 if transfers_so_far < 0 else transfers_so_far + 1
+                if not unlimited and next_transfers > max_transfers:
                     continue
-                leg = {
-                    "vehicle": run["vehicle"],
-                    "from": first_stop["name"],
-                    "to": next_stop["name"],
-                    "departMinute": scheduled_departure,
-                    "arriveMinute": next_arrival,
-                    "departDayOffset": scheduled_departure // 1440,
-                    "arriveDayOffset": next_arrival // 1440,
-                }
-                best[next_state] = next_arrival
-                parent[next_state] = (state, leg)
-                transfer_labels[next_state] = next_transfers
-                heapq.heappush(queue, (next_arrival, next_state))
+                for next_stop_index, next_stop in enumerate(run["stops"][stop_index + 1:], start=stop_index + 1):
+                    if run["invalidPrefix"][next_stop_index] > run["invalidPrefix"][stop_index]:
+                        continue
+                    next_arrival = next_stop["arrival"] + shift
+                    while next_arrival < scheduled_departure:
+                        next_arrival += 1440
+                    if next_arrival > horizon or next_stop["key"] in visited_stations:
+                        continue
+                    next_state = next_stop["key"] if unlimited else (next_stop["key"], next_transfers)
+                    if next_arrival >= best.get(next_state, float("inf")):
+                        continue
+                    leg = {
+                        "vehicle": run["vehicle"],
+                        "from": first_stop["name"],
+                        "to": next_stop["name"],
+                        "departMinute": scheduled_departure,
+                        "arriveMinute": next_arrival,
+                        "departDayOffset": scheduled_departure // 1440,
+                        "arriveDayOffset": next_arrival // 1440,
+                    }
+                    best[next_state] = next_arrival
+                    parent[next_state] = (state, leg)
+                    transfer_labels[next_state] = next_transfers
+                    heapq.heappush(queue, (next_arrival, next_state))
 
-    plans, seen_paths = [], set()
-    for target in target_states:
+        if not target_states:
+            return None
+        target = min(target_states, key=lambda state: (best[state], transfer_labels[state]))
         legs = []
         cursor = target
         while cursor != start_state:
@@ -598,34 +631,51 @@ def bus_connection_plans(from_station: str, to_station: str, leave_after: str, m
             legs.append(dict(leg))
             cursor = previous
         legs.reverse()
-        signature = tuple((leg["vehicle"], leg["from"], leg["to"], leg["departMinute"]) for leg in legs)
-        if not legs or signature in seen_paths:
-            continue
-        seen_paths.add(signature)
+        if not legs:
+            return None
+        first_departure = legs[0]["departMinute"]
+        arrival_minute = best[target]
+        waits = []
+        for previous_leg, next_leg in zip(legs, legs[1:]):
+            waits.append({
+                "station": previous_leg["to"],
+                "waitMinutes": max(0, next_leg["departMinute"] - previous_leg["arriveMinute"]),
+            })
         for leg in legs:
             leg["depart"] = format_bus_clock(leg.pop("departMinute"))
             leg["arrive"] = format_bus_clock(leg.pop("arriveMinute"))
-        arrival_minute = best[target]
-        transfers = len(legs) - 1
-        waits = []
-        for previous_leg, next_leg in zip(legs, legs[1:]):
-            previous_arrival = parse_bus_clock(previous_leg["arrive"])
-            next_departure = parse_bus_clock(next_leg["depart"])
-            waits.append({"station": previous_leg["to"], "waitMinutes": (next_departure - previous_arrival) % 1440})
-        plans.append({
-            "transferCount": transfers,
-            "totalMinutes": arrival_minute - start_minute,
-            "departAt": format_bus_clock(start_minute),
+        return {
+            "transferCount": len(legs) - 1,
+            "totalMinutes": arrival_minute - first_departure,
+            "departAt": format_bus_clock(first_departure),
             "arriveAt": format_bus_clock(arrival_minute),
             "arrivalDayOffset": arrival_minute // 1440,
             "legs": legs,
             "transfers": waits,
-        })
-    plans.sort(key=lambda plan: (plan["totalMinutes"], plan["transferCount"]))
+            "_firstDeparture": first_departure,
+            "_arrivalMinute": arrival_minute,
+        }
+
+    # Return up to three fast journeys, each based on a distinct first departure.
+    plans, seen_departures = [], set()
+    search_after = start_minute
+    for _ in range(3):
+        plan = find_best_plan(search_after)
+        if not plan:
+            break
+        first_departure = plan.pop("_firstDeparture")
+        if first_departure in seen_departures:
+            break
+        seen_departures.add(first_departure)
+        plans.append(plan)
+        search_after = first_departure + 1
+    plans.sort(key=lambda plan: (plan["totalMinutes"], plan["_arrivalMinute"], plan["transferCount"]))
+    for plan in plans:
+        plan.pop("_arrivalMinute", None)
     return {
         "from": names[origin], "to": names[destination], "leaveAfter": format_bus_clock(start_minute),
         "maxTransfers": "unlimited" if unlimited else max_transfers,
-        "count": len(plans[:12]), "plans": plans[:12],
+        "count": len(plans), "plans": plans,
         "source": "https://github.com/amith-vp/Kerala-Private-Bus-Timing",
     }
 

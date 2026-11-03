@@ -149,7 +149,7 @@ function renderBusPlans(payload) {
   const plans = payload.plans || [];
   busEl('#busResultsTitle').textContent = `${payload.from} to ${payload.to}`;
   busEl('#busResultsSubtitle').textContent = plans.length
-    ? `${plans.length} scheduled option${plans.length === 1 ? '' : 's'} · ${payload.maxTransfers === 'unlimited' ? 'no transfer limit' : `up to ${payload.maxTransfers} changes`}`
+    ? `${plans.length} fastest option${plans.length === 1 ? '' : 's'} after ${payload.leaveAfter} · ${payload.maxTransfers === 'unlimited' ? 'no transfer limit' : `up to ${payload.maxTransfers} changes`}`
     : 'No bus journey found in the available timetable. Try another leave-after time or transfer limit.';
   if (!plans.length) {
     busEl('#busResultsList').innerHTML = '<div class="bus-empty-state"><strong>No bus route found</strong><p>Try an earlier departure or allow more changes. This dataset covers Kerala private buses only.</p></div>';
