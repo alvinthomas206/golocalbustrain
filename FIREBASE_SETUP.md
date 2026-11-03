@@ -4,7 +4,7 @@ The admin portal at `/admin.html` stores bus records in the `busVehicles` Firest
 
 ## One-time Firebase setup
 
-1. Open Firebase project `golocal-8ef44` and create a Cloud Firestore database.
+1. Open Firebase project `agile-tracker-472015-p8` and create a Cloud Firestore database.
 2. In **Authentication → Sign-in method**, enable **Email/Password**.
 3. In **Authentication → Users**, create the administrator account `admin@golocal.com`, set its password, and mark its email as verified in the user record. The portal has no public sign-up.
 4. From this project folder, sign in to Firebase CLI and publish the included rules:
