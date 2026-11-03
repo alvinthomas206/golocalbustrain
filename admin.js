@@ -6,7 +6,7 @@ import {
 import {
   getFirestore, collection, doc, getDoc, getDocs, query, orderBy, limit,
   startAfter, where, writeBatch, setDoc, deleteDoc, serverTimestamp,
-  increment,
+  increment, getCountFromServer, onSnapshot,
 } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 import { firebaseConfig, busAdminEmail } from './firebase-config.js';
 
@@ -24,6 +24,10 @@ let listHasMore = false;
 let currentBusId = null;
 let currentBusData = null;
 let busListLoading = false;
+let totalBusCount = null;
+let unsubscribeCatalog = null;
+let lastCatalogRevision = null;
+let catalogWriteInProgress = false;
 
 const message = (element, text, type = '') => {
   element.textContent = text;
@@ -43,11 +47,36 @@ const normalizeStop = (value) => {
 };
 const stopKey = (value) => normalizeStop(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 async function bumpCatalogRevision() {
-  await setDoc(doc(db, 'busMetadata', 'state'), {
-    revision: increment(1),
-    updatedAt: serverTimestamp(),
-    updatedBy: auth.currentUser.email,
-  }, { merge: true });
+  const reference = doc(db, 'busMetadata', 'state');
+  catalogWriteInProgress = true;
+  try {
+    await setDoc(reference, {
+      revision: increment(1),
+      updatedAt: serverTimestamp(),
+      updatedBy: auth.currentUser.email,
+    }, { merge: true });
+    const snapshot = await getDoc(reference);
+    lastCatalogRevision = Number(snapshot.get('revision') || 0);
+  } finally {
+    catalogWriteInProgress = false;
+  }
+}
+
+function watchCatalogChanges() {
+  unsubscribeCatalog?.();
+  lastCatalogRevision = null;
+  unsubscribeCatalog = onSnapshot(doc(db, 'busMetadata', 'state'), (snapshot) => {
+    if (!snapshot.exists()) return;
+    const revision = Number(snapshot.get('revision') || 0);
+    if (lastCatalogRevision === null) {
+      lastCatalogRevision = revision;
+      return;
+    }
+    if (revision === lastCatalogRevision) return;
+    lastCatalogRevision = revision;
+    if (catalogWriteInProgress) return;
+    loadBusList(true).catch((error) => message($('#editorMessage'), error.message, 'error'));
+  }, (error) => message($('#editorMessage'), error.message, 'error'));
 }
 const searchTokens = (values) => {
   const tokens = new Set();
@@ -82,6 +111,7 @@ function showDashboard(user) {
   $('#loginView').hidden = true;
   $('#adminView').hidden = false;
   $('#signedInEmail').textContent = user.email;
+  watchCatalogChanges();
   loadBusList(true).catch((error) => {
     $('#busRecordCount').textContent = 'Connection failed';
     $('#busRecordList').innerHTML = `<div class="admin-message error">${esc(error.message)}</div>`;
@@ -90,6 +120,9 @@ function showDashboard(user) {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    unsubscribeCatalog?.();
+    unsubscribeCatalog = null;
+    lastCatalogRevision = null;
     $('#loginView').hidden = false;
     $('#adminView').hidden = true;
     return;
@@ -149,12 +182,21 @@ async function loadBusList(reset = false) {
   }
   const term = stopKey($('#busAdminSearch').value.trim());
   try {
+    if (reset) {
+      try {
+        const count = await getCountFromServer(collection(db, 'busVehicles'));
+        totalBusCount = count.data().count;
+      } catch {
+        totalBusCount = null;
+      }
+    }
     const constraints = term
-      ? [where('searchTokens', 'array-contains', term), limit(100)]
+      ? [where('searchTokens', 'array-contains', term), limit(100), ...(lastBusDoc ? [startAfter(lastBusDoc)] : [])]
       : [orderBy('vehicleNumber'), limit(100), ...(lastBusDoc ? [startAfter(lastBusDoc)] : [])];
     const snapshot = await getDocs(query(collection(db, 'busVehicles'), ...constraints));
-    if (!term && snapshot.docs.length) lastBusDoc = snapshot.docs.at(-1);
-    listHasMore = !term && snapshot.docs.length === 100;
+    if (snapshot.docs.length) lastBusDoc = snapshot.docs.at(-1);
+    else if (reset) lastBusDoc = null;
+    listHasMore = snapshot.docs.length === 100;
     for (const record of snapshot.docs) {
       const data = record.data();
       const item = document.createElement('button');
@@ -164,9 +206,13 @@ async function loadBusList(reset = false) {
       item.innerHTML = `<strong>${esc(data.busName || data.vehicleNumber || 'Unnamed bus')}</strong><small>${esc(data.vehicleNumber || '')} · ${esc((data.route || []).slice(0, 3).join(' → '))}</small>`;
       $('#busRecordList').append(item);
     }
+    const visibleBusCount = $('#busRecordList').querySelectorAll('[data-bus-id]').length;
     $('#busRecordCount').textContent = term
-      ? `${snapshot.size} matching records`
-      : `${$('#busRecordList').children.length}${listHasMore ? '+' : ''} loaded`;
+      ? `Showing ${visibleBusCount}${listHasMore ? '+' : ''} matching buses`
+      : totalBusCount === null
+        ? `Showing ${visibleBusCount}${listHasMore ? '+' : ''} buses`
+        : `Showing ${visibleBusCount} of ${totalBusCount.toLocaleString()} buses`;
+    $('#loadMoreButton').textContent = term ? 'Load more matches' : 'Load more buses';
     button.hidden = !listHasMore;
     if (term && snapshot.empty) {
       $('#busRecordList').innerHTML = '<div class="admin-message">No matching bus. Try a bus number or stop name.</div>';

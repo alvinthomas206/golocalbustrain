@@ -1,9 +1,11 @@
 __pycache__/
+node_modules/
 *.py[cod]
 .vercel/
 .env
 .env.*
 !.env.example
 service-account*.json
+service-acc.json*
 *-firebase-adminsdk-*.json
 firebase-admin-key.json
