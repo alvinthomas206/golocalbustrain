@@ -17,7 +17,7 @@ The admin portal at `/admin.html` stores bus records in the `busVehicles` Firest
 
    The rules make timetable reads public for journey search and allow changes only from the verified `admin@golocal.com` account.
 
-5. In the GoLocal Vercel project, add `FIREBASE_SERVICE_ACCOUNT_JSON` as an environment variable. Create a Google Cloud service account for this project with the **Cloud Datastore Viewer** role, download its JSON key, and paste the complete JSON as the variable value. Keep the key in Vercel only; never commit it or paste it into the public web configuration. The key gives the journey API read access so it can use administrator-edited Firebase data. The admin portal writes through Firebase Authentication and the Firestore rules.
+5. In the GoLocal Vercel project, add `FIREBASE_SERVICE_ACCOUNT_JSON` as an environment variable. Create a Google Cloud service account for this project with the **Cloud Datastore Viewer** role, download its JSON key, and paste the complete JSON file contents as the variable value. Do not paste the filename or local path, Firebase web config, or API key; do not wrap the full JSON object in quotes. Keep the key in Vercel only; never commit it or paste it into the public web configuration. The key gives the journey API read access so it can use administrator-edited Firebase data. The admin portal writes through Firebase Authentication and the Firestore rules.
 6. Redeploy Vercel after saving the environment variable.
 
 ## Import and manage bus data

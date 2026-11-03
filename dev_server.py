@@ -590,7 +590,33 @@ def firebase_bus_firestore_client():
         try:
             firebase_app = firebase_admin.get_app(FIREBASE_BUS_APP_NAME)
         except ValueError:
-            credential = credentials.Certificate(json.loads(service_json))
+            candidate = service_json.lstrip("\ufeff").strip()
+            credential_data = None
+            candidates = [candidate]
+            if len(candidate) > 1 and candidate[0] == candidate[-1] and candidate[0] in "\"'":
+                candidates.append(candidate[1:-1].strip())
+            for value in candidates:
+                try:
+                    credential_data = json.loads(value)
+                    if isinstance(credential_data, str):
+                        credential_data = json.loads(credential_data)
+                    break
+                except (json.JSONDecodeError, TypeError):
+                    credential_data = None
+            required_fields = ("type", "project_id", "private_key", "client_email")
+            if not isinstance(credential_data, dict) or any(not credential_data.get(field) for field in required_fields):
+                raise ValueError(
+                    "FIREBASE_SERVICE_ACCOUNT_JSON must contain the complete service-account JSON object. "
+                    "In Vercel, paste the downloaded JSON file contents without surrounding quotes; "
+                    "do not enter a filename, file path, Firebase web config, or API key."
+                )
+            expected_project = "agile-tracker-472015-p8"
+            if credential_data.get("project_id") != expected_project:
+                raise ValueError(
+                    f"The Firebase service-account key is for project {credential_data.get('project_id')}, "
+                    f"but this app uses {expected_project}. Replace the Vercel value with a key from the app's project."
+                )
+            credential = credentials.Certificate(credential_data)
             firebase_app = firebase_admin.initialize_app(credential, name=FIREBASE_BUS_APP_NAME)
         return firestore.client(app=firebase_app)
     except Exception as exc:
