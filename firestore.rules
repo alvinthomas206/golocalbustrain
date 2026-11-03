@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isGoLocalAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@golocal.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Timetables are public to read; only the named admin can change them.
+    match /busVehicles/{vehicleId} {
+      allow read: if true;
+      allow create, update, delete: if isGoLocalAdmin();
+    }
+
+    match /busMetadata/{documentId} {
+      allow read: if true;
+      allow create, update: if isGoLocalAdmin();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

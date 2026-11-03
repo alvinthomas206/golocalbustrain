@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f6f7f2" />
+  <title>Bus administration — GoLocal</title>
+  <link rel="icon" type="image/png" href="/icons/golocal-mark.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body class="admin-body">
+  <main class="admin-login" id="loginView">
+    <a class="admin-brand" href="/"><img src="/icons/golocal-mark.png" alt="" /> GoLocal</a>
+    <section class="login-card">
+      <div class="admin-eyebrow">BUS OPERATIONS</div>
+      <h1>Admin sign in</h1>
+      <p>Sign in with the GoLocal administrator account to manage bus records and schedules.</p>
+      <form id="loginForm">
+        <label>Email<input id="loginEmail" type="email" autocomplete="username" value="admin@golocal.com" required /></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+        <button class="primary-button" type="submit" id="loginButton">Sign in</button>
+      </form>
+      <button class="text-button" id="resetPassword" type="button">Send password reset email</button>
+      <div class="admin-message" id="loginMessage" role="status"></div>
+      <small class="login-note">Administrator account is provisioned in Firebase Authentication. There is no public sign-up.</small>
+    </section>
+  </main>
+
+  <main class="admin-shell" id="adminView" hidden>
+    <header class="admin-topbar">
+      <a class="admin-brand" href="/"><img src="/icons/golocal-mark.png" alt="" /> GoLocal <span>BUS ADMIN</span></a>
+      <div class="admin-account"><span id="signedInEmail"></span><button class="text-button" id="signOutButton" type="button">Sign out</button></div>
+    </header>
+    <section class="admin-heading">
+      <div><div class="admin-eyebrow">SCHEDULE CONTROL</div><h1>Manage buses</h1><p>Edit the bus name, route, stops, trips, departure times, and arrival times.</p></div>
+      <div class="admin-heading-actions"><button class="secondary-button" id="importDataButton" type="button">Import source timetable</button><button class="primary-button" id="newBusButton" type="button">＋ Add bus</button></div>
+    </section>
+    <div class="admin-import-status" id="importStatus" hidden><span class="progress-track"><i id="importProgress"></i></span><span id="importStatusText"></span></div>
+    <div class="admin-workspace">
+      <aside class="bus-list-panel">
+        <div class="bus-list-title"><div><strong>Bus records</strong><small id="busRecordCount">Loading…</small></div><button class="icon-refresh" id="refreshListButton" type="button" aria-label="Refresh buses">↻</button></div>
+        <label class="bus-search-label"><span>⌕</span><input id="busAdminSearch" type="search" placeholder="Find by bus or number" /></label>
+        <div class="bus-record-list" id="busRecordList"></div>
+        <button class="load-more-button" id="loadMoreButton" type="button" hidden>Load more</button>
+      </aside>
+      <section class="bus-editor-panel">
+        <div class="editor-empty" id="editorEmpty"><div class="empty-bus-icon">▰</div><strong>Select a bus to edit</strong><p>Choose a record on the left, or add a new bus.</p></div>
+        <form id="busEditor" hidden>
+          <div class="editor-title-row"><div><div class="admin-eyebrow">BUS PROFILE</div><h2 id="editorTitle">New bus</h2></div><button class="delete-button" id="deleteBusButton" type="button" hidden>Delete bus</button></div>
+          <div class="profile-grid">
+            <label>Bus name<input id="busName" required placeholder="e.g. Fast Passenger" /></label>
+            <label>Vehicle number<input id="vehicleNumber" required placeholder="e.g. KL 07 AB 1234" /></label>
+            <label>District<input id="busDistrict" placeholder="District or operating area" /></label>
+          </div>
+          <div class="route-preview"><span>ROUTE</span><p id="routeSummary">Add stops to the first trip to define the route.</p></div>
+          <div class="trips-heading"><div><h3>Scheduled trips</h3><p>Each trip has its own ordered stops and times.</p></div><button class="secondary-button" id="addTripButton" type="button">＋ Add trip</button></div>
+          <div class="trip-list" id="tripList"></div>
+          <div class="editor-actions"><span class="admin-message" id="editorMessage" role="status"></span><button class="primary-button" type="submit" id="saveBusButton">Save bus and trips</button></div>
+        </form>
+      </section>
+    </div>
+    <footer class="admin-footer">Timetable data is public for journey search. Changes are restricted to the GoLocal administrator account.</footer>
+  </main>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

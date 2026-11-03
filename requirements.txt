@@ -1,1 +1,2 @@
 ntes-client==0.1.4
+firebase-admin>=6.5,<8

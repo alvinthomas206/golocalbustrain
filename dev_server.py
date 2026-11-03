@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 import math
 import heapq
@@ -31,6 +32,7 @@ BUS_DATA_URL = "https://raw.githubusercontent.com/amith-vp/Kerala-Private-Bus-Ti
 BUS_DATA_TTL = 6 * 60 * 60
 BUS_DATA_LOCK = threading.Lock()
 BUS_DATA_CACHE = None
+FIREBASE_BUS_APP_NAME = "golocal-bus-data"
 TRAIN_CACHE: dict[tuple[str, str], tuple[float, dict]] = {}
 CACHE_LOCK = threading.Lock()
 CACHE_TTL = 300
@@ -420,7 +422,16 @@ def load_bus_timetable():
     """Load and index the public Kerala private-bus timetable, caching it in this process."""
     global BUS_DATA_CACHE
     with BUS_DATA_LOCK:
-        if BUS_DATA_CACHE and time.monotonic() - BUS_DATA_CACHE[0] < BUS_DATA_TTL:
+        firebase_client = firebase_bus_firestore_client()
+        firebase_revision = None
+        if firebase_client:
+            try:
+                metadata = firebase_client.collection("busMetadata").document("state").get()
+                firebase_revision = int((metadata.to_dict() or {}).get("revision", 0))
+            except Exception as exc:
+                raise RuntimeError(f"Could not check the Firebase bus catalogue version: {exc}") from exc
+        cache_revision = BUS_DATA_CACHE[4] if BUS_DATA_CACHE and len(BUS_DATA_CACHE) > 4 else None
+        if BUS_DATA_CACHE and time.monotonic() - BUS_DATA_CACHE[0] < BUS_DATA_TTL and cache_revision == firebase_revision:
             return BUS_DATA_CACHE[1], BUS_DATA_CACHE[2], BUS_DATA_CACHE[3]
 
         def fetch_file(filename: str):
@@ -440,17 +451,47 @@ def load_bus_timetable():
                 pass  # Vercel functions have a read-only deployment bundle.
             return filename, json.loads(raw.decode("utf-8"))
 
-        try:
-            with ThreadPoolExecutor(max_workers=6) as pool:
-                files = dict(pool.map(fetch_file, BUS_DATA_FILES))
-        except Exception as exc:
-            raise RuntimeError(f"Could not load the Kerala bus timetable from its GitHub source: {exc}") from exc
+        if firebase_client:
+            try:
+                collection = firebase_client.collection("busVehicles")
+                bus_records = []
+                for document in collection.stream():
+                    bus_data = document.to_dict() or {}
+                    schedule = []
+                    for trip_index, trip in enumerate(bus_data.get("trips") or []):
+                        stations = [{
+                            "station": stop.get("station") or stop.get("name") or "",
+                            "arrivalTime": stop.get("arrivalTime") or stop.get("arrival") or "",
+                            "departureTime": stop.get("departureTime") or stop.get("departure") or "",
+                        } for stop in trip.get("stops") or []]
+                        if len(stations) >= 2:
+                            schedule.append({"trip": trip.get("tripNo", trip_index + 1), "stations": stations})
+                    if schedule:
+                        bus_records.append({
+                            "Vehicle Number": bus_data.get("vehicleNumber") or bus_data.get("vehicle_number") or document.id,
+                            "Bus Name": bus_data.get("busName") or "",
+                            "schedule": schedule,
+                        })
+                if not bus_records:
+                    raise RuntimeError("Firebase has no bus records yet. Sign in to /admin.html and import the source timetable first.")
+                files = {"firebase-firestore": {"busSchedules": bus_records}}
+            except RuntimeError:
+                raise
+            except Exception as exc:
+                raise RuntimeError(f"Could not load bus records from Firebase: {exc}") from exc
+        else:
+            try:
+                with ThreadPoolExecutor(max_workers=6) as pool:
+                    files = dict(pool.map(fetch_file, BUS_DATA_FILES))
+            except Exception as exc:
+                raise RuntimeError(f"Could not load the Kerala bus timetable from bundled files or its GitHub source: {exc}") from exc
 
         runs, names, seen = [], {}, set()
         for filename, payload in files.items():
             schedules = payload.get("busSchedules", []) if isinstance(payload, dict) else []
             for bus_record in schedules:
-                vehicle = str(bus_record.get("Vehicle Number") or bus_record.get("vehicle_number") or "Bus").strip()
+                vehicle_number = str(bus_record.get("Vehicle Number") or bus_record.get("vehicle_number") or "Bus").strip()
+                vehicle_name = str(bus_record.get("Bus Name") or bus_record.get("busName") or vehicle_number).strip()
                 for trip_index, trip in enumerate(bus_record.get("schedule") or []):
                     raw_stops = trip.get("stations") or []
                     stops, previous_departure = [], None
@@ -475,11 +516,11 @@ def load_bus_timetable():
                         stops.append({"key": key, "name": names[key], "arrival": arrival, "departure": departure})
                     if len(stops) < 2:
                         continue
-                    signature = (vehicle, tuple((s["key"], s["arrival"], s["departure"]) for s in stops))
+                    signature = (vehicle_number, tuple((s["key"], s["arrival"], s["departure"]) for s in stops))
                     if signature in seen:
                         continue
                     seen.add(signature)
-                    runs.append({"id": f"{filename}:{vehicle}:{trip_index}", "vehicle": vehicle, "stops": stops})
+                    runs.append({"id": f"{filename}:{vehicle_number}:{trip_index}", "vehicle": vehicle_name, "vehicleNumber": vehicle_number, "stops": stops})
 
         if not runs:
             raise RuntimeError("The Kerala bus source returned no usable bus trips.")
@@ -508,11 +549,15 @@ def load_bus_timetable():
         for run_index, run in enumerate(runs):
             for stop_index, stop in enumerate(run["stops"][:-1]):
                 index.setdefault(stop["key"], []).append((run_index, stop_index))
-        BUS_DATA_CACHE = (time.monotonic(), runs, index, names)
+        BUS_DATA_CACHE = (time.monotonic(), runs, index, names, firebase_revision)
         return runs, index, names
 
 
 def bus_station_directory() -> dict:
+    if os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip():
+        _, _, firebase_names = load_bus_timetable()
+        station_names = sorted({canonical_bus_stop_name(name) for name in firebase_names.values() if canonical_bus_stop_name(name)}, key=str.casefold)
+        return {"count": len(station_names), "stations": station_names, "source": "Firebase bus catalogue"}
     index_path = BUS_DATA_DIR / "bus_stations.json"
     if index_path.is_file():
         try:
@@ -533,6 +578,23 @@ def bus_station_directory() -> dict:
 
 def format_bus_clock(minutes: int) -> str:
     return (datetime(2000, 1, 1) + timedelta(minutes=minutes % 1440)).strftime("%I:%M %p")
+
+
+def firebase_bus_firestore_client():
+    service_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not service_json:
+        return None
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        try:
+            firebase_app = firebase_admin.get_app(FIREBASE_BUS_APP_NAME)
+        except ValueError:
+            credential = credentials.Certificate(json.loads(service_json))
+            firebase_app = firebase_admin.initialize_app(credential, name=FIREBASE_BUS_APP_NAME)
+        return firestore.client(app=firebase_app)
+    except Exception as exc:
+        raise RuntimeError(f"Could not initialize the Firebase bus connection: {exc}") from exc
 
 
 def bus_connection_plans(from_station: str, to_station: str, leave_after: str, max_transfers=None) -> dict:
@@ -609,6 +671,7 @@ def bus_connection_plans(from_station: str, to_station: str, leave_after: str, m
                         continue
                     leg = {
                         "vehicle": run["vehicle"],
+                        "vehicleNumber": run.get("vehicleNumber", run["vehicle"]),
                         "from": first_stop["name"],
                         "to": next_stop["name"],
                         "departMinute": scheduled_departure,
