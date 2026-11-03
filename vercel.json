@@ -1,0 +1,43 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/connections.py": {
+      "maxDuration": 120,
+      "includeFiles": "stations.json"
+    },
+    "api/trains.py": {
+      "maxDuration": 60
+    },
+    "api/buses.py": {
+      "maxDuration": 120,
+      "includeFiles": "bus-data/**"
+    }
+  },
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json; charset=utf-8"
+        }
+      ]
+    }
+  ],
+  "regions": [
+    "bom1"
+  ]
+}

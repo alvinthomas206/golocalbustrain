@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f6f7f2" />
+  <meta name="description" content="GoLocal helps you discover train and bus journeys across India." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>GoLocal — Multimodal journey discovery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="app-states.css" />
+</head>
+<body>
+  <main class="launch-page" id="launchPage">
+    <header class="launch-topbar"><a class="brand" href="/" aria-label="GoLocal home"><span class="brand-mark" aria-hidden="true"><img src="/icons/golocal-mark.png" alt="" /></span><span>GoLocal</span></a><span class="launch-top-label">MULTIMODAL JOURNEY DISCOVERY</span></header>
+    <section class="launch-hero"><div class="launch-copy"><div class="eyebrow"><span class="eyebrow-dot"></span> THE JOURNEY STARTS HERE</div><h1>One trip.<br><em>Every way there.</em></h1><p>Find a route that fits your day. Compare Indian Railways journeys or connect through Kerala’s private bus network.</p></div><div class="launch-art" aria-hidden="true"><div class="launch-orbit orbit-one"></div><div class="launch-orbit orbit-two"></div><div class="launch-pin"><img src="/icons/golocal-mark.png" alt="" /></div><span class="launch-spark">✳</span></div></section>
+    <section class="launch-options" aria-labelledby="launchOptionsTitle"><div class="launch-section-kicker">CHOOSE YOUR JOURNEY</div><h2 id="launchOptionsTitle">Where are you headed?</h2><p>Start with the transport option that works for you.</p><div class="launch-mode-grid"><button class="launch-mode-card train-mode" type="button" data-open-app="train"><span class="mode-icon">🚆</span><span class="mode-card-copy"><strong>Train journeys</strong><small>Direct trains and connections across India</small></span><span class="mode-arrow">→</span></button><button class="launch-mode-card bus-mode" type="button" data-open-app="bus"><span class="mode-icon">🚌</span><span class="mode-card-copy"><strong>Kerala bus journeys</strong><small>Private bus timings with flexible transfers</small></span><span class="mode-arrow">→</span></button></div><div class="launch-note">GoLocal is a student project. Timetable suggestions are informational; confirm with operators before travel.</div></section>
+    <footer class="launch-footer"><span>© 2026 GoLocal · A student innovation project</span><span>Made for the way India travels <i>✳</i></span></footer>
+  </main>
+  <div class="app-shell" id="trainApp" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="#top" aria-label="GoLocal home"><span class="brand-mark" aria-hidden="true"><img src="/icons/golocal-mark.png" alt="" /></span><span>GoLocal</span></a>
+      <div class="side-label">YOUR JOURNEY</div>
+      <nav class="side-nav" aria-label="Main navigation">
+        <a class="nav-item active" href="#search"><span class="nav-icon">⌕</span><span>Find trains</span></a>
+        <a class="nav-item" href="#results"><span class="nav-icon">▤</span><span>My journeys</span><span class="nav-soon">SOON</span></a>
+        <a class="nav-item" href="#info"><span class="nav-icon">◷</span><span>Live status</span></a>
+      </nav>
+      <div class="side-bottom">
+        <div class="help-card"><div class="help-icon">✦</div><strong>Travel, made simpler.</strong><p>One place to explore your next journey across India.</p><a href="#about">About GoLocal <span>↗</span></a></div>
+        <div class="student-tag"><span class="status-dot"></span> Student project <span class="tag-country">INDIA</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="top">
+      <header class="topbar"><div class="train-topbar-left"><button class="back-launch" type="button" data-open-app="home">← Home</button><div class="breadcrumb">Explore <span>/</span> <strong>Trains</strong></div></div><div class="top-actions"><span class="today-label" id="todayLabel"></span><button class="icon-button install-button" id="installButton" type="button" title="Install GoLocal" aria-label="Install GoLocal" hidden>↓</button><div class="avatar">G</div></div></header>
+      <section class="hero" id="search">
+        <div class="hero-copy"><div class="eyebrow"><span class="eyebrow-dot"></span> THE JOURNEY STARTS HERE</div><h1>Where would you<br><em>like to go?</em></h1><p>Find a train that fits your plans. Compare journeys, timings and more.</p></div>
+        <div class="hero-art" aria-hidden="true"><div class="sun"></div><div class="hill hill-back"></div><div class="hill hill-front"></div><div class="track"></div><div class="train-art"><div class="train-window"></div><div class="train-window"></div><div class="train-window"></div><div class="train-wheel"></div><div class="train-wheel w2"></div></div><div class="art-spark s1">✳</div><div class="art-spark s2">✦</div></div>
+      </section>
+
+      <section class="search-card" aria-label="Search trains">
+        <div class="search-fields">
+          <div class="field"><span class="field-label">FROM</span><span class="field-main"><span class="field-icon">◉</span><input id="fromInput" value="New Delhi" aria-label="From station" autocomplete="off"/><button class="clear-field" data-clear="fromInput" aria-label="Clear origin">×</button></span><span class="field-sub" id="fromCode">NDLS · New Delhi</span><div class="station-suggestions" id="fromSuggestions" role="listbox" hidden></div></div>
+          <button class="swap-button" id="swapButton" aria-label="Swap stations">⇄</button>
+          <div class="field"><span class="field-label">TO</span><span class="field-main"><span class="field-icon destination">◎</span><input id="toInput" value="Mumbai Central" aria-label="To station" autocomplete="off"/><button class="clear-field" data-clear="toInput" aria-label="Clear destination">×</button></span><span class="field-sub" id="toCode">MMCT · Mumbai Central</span><div class="station-suggestions" id="toSuggestions" role="listbox" hidden></div></div>
+          <label class="field date-field"><span class="field-label">JOURNEY DATE</span><span class="field-main"><span class="field-icon">▦</span><input id="dateInput" type="date" aria-label="Journey date"/></span><span class="field-sub" id="dateHint">Select your travel date</span></label>
+          <label class="field class-field"><span class="field-label">TRAVEL CLASS</span><span class="field-main"><span class="field-icon">▣</span><select id="classSelect" aria-label="Travel class"><option value="All classes">All classes</option><option>Sleeper (SL)</option><option>AC 3 Tier (3A)</option><option>AC 2 Tier (2A)</option><option>AC First Class (1A)</option><option>Chair Car (CC)</option></select></span><span class="field-sub">Choose a class</span></label>
+        </div>
+        <div class="via-stop-row"><button type="button" class="add-via-button" id="toggleVia"><span>＋</span> Add a mid-stop</button><span class="via-helper">Optional · choose a station you want to travel through</span><div class="via-field" id="viaField" hidden><div class="via-input-wrap"><span class="field-icon destination">◎</span><input id="viaInput" aria-label="Mid-stop station" placeholder="Search a station or state" autocomplete="off"/><span class="via-code" id="viaCode">Choose a mid-stop station</span><span class="via-field-caption">MID-STOP</span><div class="station-suggestions" id="viaSuggestions" role="listbox" hidden></div></div><button type="button" id="removeVia" class="remove-via" aria-label="Remove mid-stop">×</button></div></div>
+        <datalist id="stations"><option value="New Delhi" label="NDLS"></option><option value="Mumbai Central" label="MMCT"></option><option value="Howrah Junction" label="HWH"></option><option value="Chennai Central" label="MAS"></option><option value="Bengaluru City" label="SBC"></option><option value="Ahmedabad Junction" label="ADI"></option><option value="Jaipur Junction" label="JP"></option><option value="Lucknow Charbagh" label="LKO"></option><option value="Pune Junction" label="PUNE"></option><option value="Agra Cantt" label="AGC"></option><option value="Varanasi Junction" label="BSB"></option><option value="Hyderabad Deccan" label="HYB"></option><option value="Ghaziabad" label="GZB"></option><option value="Kanpur Central" label="CNB"></option><option value="Prayagraj Junction" label="PRYJ"></option><option value="Lokmanyatilak" label="LTT"></option><option value="Mumbai CSMT" label="CSMT"></option><option value="Thiruvananthapuram Central" label="TVC"></option><option value="Thiruvananthapuram North (Kochuveli)" label="TVCN"></option><option value="Ernakulam Junction" label="ERS"></option><option value="Ernakulam Town" label="ERN"></option><option value="Kozhikode" label="CLT"></option><option value="Thrissur" label="TCR"></option><option value="Kollam Junction" label="QLN"></option><option value="Alappuzha" label="ALLP"></option><option value="Kottayam" label="KTYM"></option><option value="Palakkad Junction" label="PGT"></option><option value="Palakkad Town" label="PGTN"></option><option value="Shoranur Junction" label="SRR"></option><option value="Kannur" label="CAN"></option><option value="Kasaragod" label="KGQ"></option><option value="Thalassery" label="TLY"></option><option value="Tirur" label="TIR"></option><option value="Chengannur" label="CNGR"></option><option value="Kayamkulam Junction" label="KYJ"></option><option value="Aluva" label="AWY"></option><option value="Angamaly for Kalady" label="AFK"></option><option value="Cherthala" label="SRTL"></option><option value="Mavelikara" label="MVLK"></option><option value="Thiruvalla" label="TRVL"></option><option value="Karunagappalli" label="KPY"></option><option value="Varkala Sivagiri" label="VAK"></option><option value="Payyanur" label="PAY"></option><option value="Kanhangad" label="KZE"></option><option value="Vadakara" label="BDJ"></option><option value="Ferok" label="FK"></option></datalist>
+        <div class="search-footer"><span class="search-note"><span class="small-lock">✳</span><span id="stationCount">Loading station directory…</span></span><button class="search-button" id="searchButton"><span>Find trains</span><span class="button-arrow">→</span></button></div>
+      </section>
+
+      <section class="results-section" id="results">
+        <div class="results-heading"><div><div class="section-kicker">YOUR OPTIONS</div><h2 id="resultsTitle">Popular journeys</h2><p id="resultsSubtitle">A few routes to get your journey started.</p></div><button class="filter-button" id="sortButton"><span>↕</span> Earliest departure</button></div>
+        <div class="plan-tabs" role="tablist" aria-label="Journey plan type"><button class="plan-tab active" role="tab" aria-selected="true" data-plan="direct">Direct trains <span id="directCount">—</span></button><button class="plan-tab" role="tab" aria-selected="false" data-plan="connections">Connecting journeys <span id="connectionCount">—</span></button><span class="plan-tab-note" id="planTabNote">Up to one transfer</span></div>
+        <div class="notice"><span class="notice-mark">i</span><span><strong>NTES timetable and running information.</strong> This uses an unofficial NTES client; data may be incomplete. Fares and booking availability are not provided. <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noreferrer">Verify with official NTES ↗</a>.</span></div>
+        <div class="train-list" id="trainList"></div>
+        <div class="empty-state" id="emptyState" hidden><div class="empty-icon">⌕</div><h3>No trains found</h3><p>Check station codes, or change your date or class.</p><button id="resetSearch">Search New Delhi to Mumbai</button></div>
+      </section>
+
+      <section class="info-strip" id="info"><div class="info-icon">◷</div><div><strong>Need live train running status?</strong><p>NTES is the official National Train Enquiry System for train-running updates.</p></div><a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noreferrer" class="info-link">Open NTES <span>↗</span></a></section>
+      <footer id="about"><span>© 2026 GoLocal · A student innovation project</span><span>Made for the way India travels <i>✳</i></span></footer>
+    </main>
+  </div>
+  <div class="bus-page" id="busApp" hidden>
+    <header class="bus-topbar"><button class="back-launch" type="button" data-open-app="home">← GoLocal</button><span class="bus-topbar-title">KERALA BUS PLANNER</span><button class="bus-switch-mode" type="button" data-open-app="train">Plan by train →</button></header>
+    <main class="bus-main">
+      <section class="bus-hero"><div class="eyebrow"><span class="eyebrow-dot"></span> KERALA PRIVATE BUS TIMINGS</div><h1>Plan a bus journey<br><em>with connections.</em></h1><p>Choose any Kerala bus stops and set how many changes you’re willing to make.</p></section>
+      <section class="search-card bus-search-card" aria-label="Search Kerala bus journeys">
+        <div class="bus-search-fields">
+          <div class="field bus-field"><span class="field-label">FROM BUS STOP</span><span class="field-main"><span class="field-icon">◉</span><input id="busFromInput" placeholder="Search a Kerala bus stop" autocomplete="off" aria-label="From bus stop"/><button class="clear-field" data-bus-clear="busFromInput" type="button" aria-label="Clear origin">×</button></span><span class="field-sub" id="busFromHint">Choose a stop from suggestions</span><div class="station-suggestions bus-suggestions" id="busFromSuggestions" role="listbox" hidden></div></div>
+          <button class="swap-button" id="busSwapButton" type="button" aria-label="Swap bus stops">⇄</button>
+          <div class="field bus-field"><span class="field-label">TO BUS STOP</span><span class="field-main"><span class="field-icon destination">◎</span><input id="busToInput" placeholder="Search a Kerala bus stop" autocomplete="off" aria-label="To bus stop"/><button class="clear-field" data-bus-clear="busToInput" type="button" aria-label="Clear destination">×</button></span><span class="field-sub" id="busToHint">Choose a stop from suggestions</span><div class="station-suggestions bus-suggestions" id="busToSuggestions" role="listbox" hidden></div></div>
+          <label class="field"><span class="field-label">LEAVE AFTER</span><span class="field-main"><span class="field-icon">◷</span><input id="busLeaveAfter" type="time" value="06:00" aria-label="Leave after"/></span><span class="field-sub">Searches scheduled departures</span></label>
+          <label class="field"><span class="field-label">MAX CHANGES</span><span class="field-main"><span class="field-icon">⇄</span><input id="busMaxTransfers" type="number" min="0" max="25" value="3" aria-label="Maximum bus changes"/></span><span class="field-sub">0 means direct buses only</span></label>
+        </div>
+        <div class="bus-search-footer"><label class="unlimited-toggle"><input id="busUnlimited" type="checkbox"/><span>No transfer limit</span></label><span class="bus-source-status" id="busSourceStatus">Bus stops load from the community timetable</span><button class="search-button" id="busSearchButton" type="button"><span>Find bus journeys</span><span class="button-arrow">→</span></button></div>
+      </section>
+      <section class="bus-results-section" aria-live="polite"><div class="results-heading"><div><div class="section-kicker">YOUR BUS OPTIONS</div><h2 id="busResultsTitle">Kerala bus connections</h2><p id="busResultsSubtitle">Choose two stops to find bus journeys.</p></div></div><div id="busResultsList" class="bus-results-list"></div></section>
+      <aside class="bus-disclaimer"><strong>About these timings</strong><p>Schedules come from the community-converted <a href="https://github.com/amith-vp/Kerala-Private-Bus-Timing" target="_blank" rel="noreferrer">Kerala Private Bus Timing dataset</a>. Coverage and times may be incomplete or outdated. This is not live tracking; confirm with the bus operator before travel.</p></aside>
+      <footer class="bus-footer">© 2026 GoLocal · Student innovation project</footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+  <script src="bus-app.js"></script>
+  <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="alvinthomas206" data-description="Support me on Buy me a coffee!" data-message="" data-color="#40DCA5" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+</body>
+</html>

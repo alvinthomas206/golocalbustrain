@@ -1,0 +1,7 @@
+[project]
+name = "golocal-train-discovery"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "ntes-client==0.1.4",
+]
